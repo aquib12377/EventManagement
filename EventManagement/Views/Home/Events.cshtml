@@ -1,0 +1,213 @@
+﻿@using EventManagement.Helper
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@model IEnumerable<User>
+@{
+    ViewData["Title"] = "Events";
+}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        position: relative;
+        background-color: #f4f6f9;
+    }
+
+    .user-panel {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        color: white;
+    }
+
+        .user-panel .image {
+            margin-right: 10px;
+        }
+
+        .user-panel .info {
+            flex: 1;
+        }
+</style>
+<style>
+    .fa-edit {
+        cursor: pointer;
+    }
+
+    .fa-trash-alt {
+        cursor: pointer;
+        color: darkred;
+        padding-left: 1rem;
+    }
+</style>
+<section class="content">
+    <div class="container-fluid">
+        <br />
+        <div class="card">
+           
+                <div class="card-header" id="newEventbtn" style="display:none">
+                    <h3 class="card-title">Manage Events</h3>
+                    <a id="newEventButton" type="button" href="/Home/AddEvents" class="btn btn-primary btn-sm float-sm-right">
+                        New Event
+                    </a>
+                </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+                <table id="tblEvent" class="table table-bordered table-striped table-sm nowrap">
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th></th>
+                            <th>Event Name</th>
+                            <th>Meal(s)</th>
+                            <th>Location</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Active</th>
+                            <th>Created On</th>
+                            <th>Created By</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                    <tfoot>
+                        <tr>
+                            <th>Id</th>
+                            <th></th>
+                            <th>Event Name</th>
+                            <th>Meal(s)</th>
+                            <th>Location</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Active</th>
+                            <th>Created On</th>
+                            <th>Created By</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <!-- /.card-body -->
+        </div>
+    </div>
+</section>
+<script src="/themeAssets//plugins//jquery//jquery.min.js"></script>
+<script>
+    var d = null;
+    $(document).ready(function () {
+        if(suser.role == "Admin")
+        {
+            $("#newEventButton").show();
+            $("#newEventbtn").show();
+        }
+        LoadEvents();
+    });
+
+    function LoadEvents() {
+        $("#tblEvent").DataTable().destroy();
+        d = $("#tblEvent").DataTable({
+            ajax: {
+                url: '/api/Event/GetAllEventsWithMealCount',
+                contentType: "application/json; charset=utf-8",
+                type: "GET",
+                dataType: "json",
+                async: true,
+                dataSrc: "",
+            },
+            columns: [{
+                data: "eventId"
+            }, {
+                data: null,
+                render: (a, b, c) => {
+                    return `<i style="padding:5px;" class="nav-icon fas fa-edit" onclick="EditEvent(${c.eventId})" ></i><i style="padding:5px;" class="nav-icon fas fa-eye" onclick="ViewEvent(${c.eventId})" data-toggle="tooltip" data-placement="top" title="View Details""></i><i style="padding:5px;" class="nav-icon fas fa-trash-alt" onclick="DeleteEvent(${c.eventId})"></i>`;
+                }
+                ,
+            }, {
+                data: "eventName"
+            }, {
+                data: "mealCount"
+            }, {
+                data: "eventLocation"
+            },
+            {
+                data: "eventStartTime",
+                render: (data) => {
+                    const utcDate = new Date(data);
+                    return FORMAT_DATETIME(utcDate).toLocaleString();
+                },
+            }, {
+                data: "eventEndTime",
+                render: (data) => {
+                    const utcDate = new Date(data);
+                    return FORMAT_DATETIME(utcDate).toLocaleString();
+                },
+            }, {
+                data: "isActive",
+                render: (a, b, c) => {
+                    return c.isActive ? `<span class="badge bg-primary">Active</span>` : `<span class="badge bg-danger">Inactive</span>`;
+                }
+                ,
+            }, {
+                data: "createdOn",
+                render: (data) => {
+                    const utcDate = new Date(data);
+                    return FORMAT_DATETIME(utcDate).toLocaleString();
+                },
+            }, {
+                data: "createdByName"
+            }],
+            dom: "Bfrtip",
+            responsive: false,
+            lengthChange: false,
+            autoWidth: false,
+            pageLength: 10,
+            scrollX: true,
+            buttons: ["copy", "csv", "excel", "pdf", "print", "colvis"],
+        });
+
+        d.buttons().container().appendTo("#tblEvent_wrapper .col-md-6:eq(0)");
+        //$(".buttons-colvis > span").text("Show/Hide Columns");
+    }
+    function EditEvent(eid) {
+        window.location.href = '/Home/AddEvents/?e=' + eid;
+    }
+
+    function ViewEvent(eid) {
+        window.location.href = '/Home/ViewEvent' + '?eid=' + eid;
+    }
+    function DeleteEvent(eid) {
+
+        if(suser.role === "Staff") {
+            Swal.fire({
+                title: 'Permission Denied',
+                text: "You don't have permission to delete events",
+                icon: 'warning',
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/api/Event/DeleteEvent' + '/' + eid,
+                    type: 'DELETE',
+                    contentType: 'application/json',
+                    success: function (r) {
+                        Swal.fire('Deleted!', 'Event deleted successfully!', 'success').then(() => {
+                            LoadEvents();
+                        }
+                        );
+                    },
+                    error: function (e) {
+                        Swal.fire('Failed!', 'Failed to delete event!', 'error');
+                    }
+                })
+            }
+        }
+        )
+    }
+</script>

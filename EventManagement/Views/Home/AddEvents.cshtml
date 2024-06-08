@@ -1,0 +1,400 @@
+﻿@{
+    ViewData["Title"] = "Add Events";
+}
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        position: relative;
+        background-color: #f4f6f9;
+    }
+
+    .user-panel {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        color: white;
+    }
+
+        .user-panel .image {
+            margin-right: 10px;
+        }
+
+        .user-panel .info {
+            flex: 1;
+        }
+
+    .fa-edit {
+        cursor: pointer;
+    }
+
+    .fa-trash-alt {
+        cursor: pointer;
+        color: darkred;
+        padding-left: 1rem;
+    }
+
+    .fa-plus-circle {
+        color: darkgreen;
+        margin-top: 0.5rem;
+        cursor: pointer;
+    }
+
+    .fa-minus-circle {
+        color: darkred;
+        margin-top: 0.5rem;
+        cursor: pointer;
+    }
+</style>
+<section class="content">
+    <div class="container-fluid">
+        <br />
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title" id="addTitle">Add Event</h3>
+                <h3 class="card-title" style="display:none" id="editTitle">Edit Event</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="txtEvent">Event Name</label>
+                            <input type="text" class="form-control" validation="alphanum" id="txtEvent" placeholder="Event Name">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="txtEventStart">Starts From</label>
+                            <input type="datetime-local" validation="datetime" class="form-control" id="txtEventStart">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="txtEventEnd">Ends At</label>
+                            <input type="datetime-local" validation="datetime" class="form-control" id="txtEventEnd">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="txtEventLocation">Event Location</label>
+                            <textarea type="text" rows="2" validation="alphanum" class="form-control" id="txtEventLocation" placeholder=""></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="eventPhoto">Event Photo</label>
+                            <input type="file" class="form-control" id="photo">
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="form-group">
+                            <label for="txtEventLocation">Event Meals</label>
+                            <table id="tblMeal" class="table table-bordered table-striped table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Meal Name</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <input type="text" placeholder="eg. Meal 1" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <input type="datetime-local" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <input type="datetime-local" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <i class="fas fa-plus-circle" onclick="addRow()"></i>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <button class="btn btn-primary btn-sm" id="btnSaveEvent">Create Event</button>
+                        <button class="btn btn-primary btn-sm" style="display:none" id="btnUpdateEvent">Update Event</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<script src="/themeAssets//plugins//jquery//jquery.min.js"></script>
+<script>
+
+    var eid = 0;
+    $(document).ready(function () {
+        if (suser.role == "User")
+            window.location.href = "/Home/Events";
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('e') != '') {
+            eid = parseInt(urlParams.get('e'));
+        }
+        if (eid > 0) {
+            $('#btnSaveEvent').hide();
+            $('#btnUpdateEvent').show();
+            $('#addTitle').hide();
+            $('#editTitle').show();
+            LoadEventData();
+        }
+    });
+    function LoadEventData() {
+        $.ajax({
+            url: '/api/Event/GetEvenWithMeals' + '/' + eid,
+            type: 'GET',
+            contentType: 'application/json',
+            success: function (e) {
+                console.log(e.payload);
+                $('#txtEvent').val(e.payload.eventName);
+                $('#txtEventLocation').val(e.payload.eventLocation);
+                $('#txtEventStart').val(e.payload.eventStartTime);
+                $('#txtEventEnd').val(e.payload.eventEndTime);
+                if (e.payload.meals.length > 0) {
+                    $("#tblMeal tbody").empty();
+                    e.payload.meals.forEach(function (meal) {
+                        var row = `<tr>
+                                                <td>
+                                                    <input type="hidden" value="${meal.mealId}" class="meal-id" />
+                                                    <input type="text" placeholder="eg. Meal 1" value="${meal.mealName}" class="form-control form-control-sm" />
+                                                </td>
+                                                <td>
+                                                    <input type="datetime-local" value="${meal.mealTimeFrom}" class="form-control form-control-sm" />
+                                                </td>
+                                                <td>
+                                                    <input type="datetime-local" value="${meal.mealTimeTo}" class="form-control form-control-sm" />
+                                                </td>
+                                                <td>
+                                                    <i class="fas fa-minus-circle" onclick="$(this).closest('tr').remove();manageButtons();"></i>
+                                                </td>
+                                            </tr>`;
+                        $("#tblMeal tbody").append(row);
+                    });
+                    $('#tblMeal tbody tr:last').find('td:last').append('<i class="fas fa-plus-circle" onclick="addRow()"></i>');
+                }
+            },
+            error: function (e) {
+                console.error(e);
+            }
+        });
+    }
+    function getBase64FromImage(file) {
+        return new Promise((resolve, reject) => {
+            var reader = new FileReader();
+            reader.onload = function () {
+                resolve(reader.result.split(',')[1]);
+                // Extract base64 portion
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+            // Read the file as a data URL (base64 string)
+        });
+    }
+    function addRow() {
+        var row = `<tr>
+                                                                   <td>
+                                                                       <input type="text" placeholder="eg. Meal 1" class="form-control form-control-sm" />
+                                                                   </td>
+                                                                   <td>
+                                                                       <input type="datetime-local" class="form-control form-control-sm" />
+                                                                   </td>
+                                                                   <td>
+                                                                       <input type="datetime-local" class="form-control form-control-sm" />
+                                                                   </td>
+                                                                   <td>
+                                                                       <i class="fas fa-minus-circle" onclick="$(this).closest('tr').remove();manageButtons();"></i>
+                                                                       <i class="fas fa-plus-circle" onclick="addRow()"></i>
+                                                                   </td>
+                                                               </tr>`
+        $('#tblMeal tbody').append(row);
+        manageButtons();
+    }
+
+    function manageButtons() {
+        var rowCount = $('#tblMeal tbody tr').length
+        if (rowCount > 1) {
+            $('#tblMeal tbody .fa-plus-circle').remove();
+            var lastRow = $('#tblMeal tbody tr:last').find('td:last').append('<i class="fas fa-plus-circle" onclick="addRow()"></i>')
+        }
+        if ($('#tblMeal tbody tr:first').find('.fa-minus-circle').length == 0) {
+            $('#tblMeal tbody tr:first').find('td:last').append(`<i class="fas fa-minus-circle" onclick="$(this).closest('tr').remove();manageButtons();"></i>`)
+        }
+        if (rowCount == 1) {
+
+            $('#tblMeal tbody .fa-minus-circle').remove();
+            if ($('#tblMeal tbody tr:first').find('.fa-plus-circle').length <= 0) {
+                $('#tblMeal tbody tr:last').find('td:last').append('<i class="fas fa-plus-circle" onclick="addRow()"></i>');
+            }
+        }
+    }
+
+    function GetMealData() {
+        var isValid = true;
+        var mealDataArray = [];
+
+        $('#tblMeal tbody tr').each(function (index) {
+            var $inputs = $(this).find('input');
+
+            var meal_id_input = $inputs.filter('.meal-id');
+            var meal_id = meal_id_input.length ? meal_id_input.val().trim() : -1; // Fetch the MealId
+            var meal_name = $inputs.eq(meal_id_input.length ? 1 : 0).val().trim();
+            var meal_time_from = $inputs.eq(meal_id_input.length ? 2 : 1).val().trim();
+            var meal_time_to = $inputs.eq(meal_id_input.length ? 3 : 2).val().trim();
+
+            if (index < $('#tblMeal tbody tr').length - 1) {
+                if (meal_name === '') {
+                    $inputs.eq(1).addClass('is-invalid');
+                    isValid = false;
+                }
+
+                if (meal_time_from === '') {
+                    $inputs.eq(2).addClass('is-invalid');
+                    isValid = false;
+                }
+
+                if (meal_time_to === '') {
+                    $inputs.eq(3).addClass('is-invalid');
+                    isValid = false;
+                }
+
+                if (isValid && isValidTime(meal_time_from) && isValidTime(meal_time_to)) {
+                    var fromTime = new Date(meal_time_from);
+                    var toTime = new Date(meal_time_to);
+                    if (fromTime >= toTime) {
+                        $inputs.eq(2).addClass('is-invalid');
+                        $inputs.eq(3).addClass('is-invalid');
+                        isValid = false;
+                    }
+                }
+            }
+
+            mealDataArray.push({
+                mealId: meal_id || null,
+                mealName: meal_name || null,
+                mealTimeFrom: meal_time_from || null,
+                mealTimeTo: meal_time_to || null
+            });
+        });
+
+        return isValid ? mealDataArray : null;
+    }
+
+    var photoBase64 = "";
+    function isValidTime(timeStr) {
+        var dateTimeRegex = /^20\d{2}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/;
+        return dateTimeRegex.test(timeStr);
+    }
+
+    $('#btnSaveEvent').on('click', async function () {
+        if (ValidateForm()) {
+            var meals = GetMealData();
+            if (meals == null || meals.length == 0)
+                return;
+
+            var photo = "";
+            var file = $('#photo')[0].files[0];
+            if (file) {
+                try {
+                    var base64String = await getBase64FromImage(file);
+                    photo = base64String ?? photoBase64;
+                } catch (error) {
+                    console.error('Error generating base64:', error);
+                    return;
+                }
+            } else {
+                photo = photoBase64;
+            }
+            var eventData = {
+                "eventName": $('#txtEvent').val(),
+                "eventLocation": $('#txtEventLocation').val(),
+                "eventStartTime": $('#txtEventStart').val(),
+                "eventEndTime": $('#txtEventEnd').val(),
+                "createdByName": suser.userId.toString(),
+                "meals": meals,
+                "photo": photo
+            }
+            console.log(eventData);
+            $.ajax({
+                url: '/api/Event/AddEvent',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(eventData),
+                success: function (resp) {
+                    Swal.fire('Saved!', 'Event created successfully.', 'success').then(() => {
+                        window.location.href = '/Home/Events'
+                    }
+                    );
+                },
+                error: function (err) {
+                    Swal.fire('Failed!', 'Failed to create event', 'success')
+                }
+            });
+        }
+    })
+    function ValidateForm() {
+        let isValid = true;
+        $("[validation]").each(function () {
+            isValid = validateInput($(this)) && isValid;
+        });
+        return isValid;
+    }
+    $('#btnUpdateEvent').on('click', async function () {
+        if (ValidateForm()) {
+            var meals = GetMealData();
+            if (meals == null || meals.length == 0)
+                return;
+
+            var photo = "";
+            var file = $('#photo')[0].files[0];
+            if (file) {
+                try {
+                    var base64String = await getBase64FromImage(file);
+                    photo = base64String ?? photoBase64;
+                } catch (error) {
+                    console.error('Error generating base64:', error);
+                    return;
+                }
+            } else {
+                photo = photoBase64;
+            }
+
+            var eventData = {
+                "eventId": eid,
+                "eventName": $('#txtEvent').val(),
+                "eventLocation": $('#txtEventLocation').val(),
+                "eventStartTime": $('#txtEventStart').val(),
+                "eventEndTime": $('#txtEventEnd').val(),
+                "createdByName": suser.userId.toString(),
+                "meals": meals,
+                "photo": photo
+            }
+            console.log(eventData);
+            $.ajax({
+                url: '/api/Event/EditEvent',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(eventData),
+                success: function (resp) {
+                    Swal.fire('Saved!', 'Event updated successfully.', 'success').then(() => {
+                        window.location.href = '/Home/Events'
+                    }
+                    );
+                },
+                error: function (err) {
+                    Swal.fire('Failed!', 'Failed to update event', 'success')
+                }
+            });
+        }
+    })
+
+</script>

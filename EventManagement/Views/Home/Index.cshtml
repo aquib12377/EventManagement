@@ -1,0 +1,219 @@
+﻿@{
+    ViewData["Title"] = "Home";
+}
+<style>
+    .fa-edit {
+        cursor: pointer;
+    }
+
+    .fa-trash-alt {
+        cursor: pointer;
+        color: darkred;
+        padding-left: 1rem;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        position: relative;
+        background-color: #f4f6f9;
+    }
+
+    .user-panel {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        color: white;
+    }
+
+        .user-panel .image {
+            margin-right: 10px;
+        }
+
+        .user-panel .info {
+            flex: 1;
+        }
+</style>
+<section class="content">
+    <div class="container-fluid">
+        <br>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Manage Users</h3>
+                <a id="newUserButton" type="button" style="display:none;" href="/Home/AddUser?u=0" class="btn btn-primary btn-sm float-sm-right mx-2">
+                    New User
+                </a>
+                <button type="button" onclick="updateFromSF()" class="btn btn-warning btn-sm float-sm-right mx-2">
+                    Update From SF
+                </button>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+                <table id="tblUser" class="table table-bordered table-striped nowrap">
+                    <thead>
+                        <tr>
+                            <th>Id</th>
+                            <th>Photo</th>
+                            <th></th>
+                            <th>Member Id</th>
+                            <th>First Name</th>
+                            <th>Last Name</th>
+                            <th>Mobile</th>
+                            <th>Email</th>
+                            <th>RFID</th>
+                            <th>Life Group</th>
+                            <th>Address</th>
+                            <th>Added On</th>
+                            <th>Added By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th>Id</th>
+                            <th>Photo</th>
+                            <th></th>
+                            <th>Member Id</th>
+                            <th>First Name</th>
+                            <th>Last Name</th>
+                            <th>Mobile</th>
+                            <th>Email</th>
+                            <th>RFID</th>
+                            <th>Life Group</th>
+                            <th>Address</th>
+                            <th>Added On</th>
+                            <th>Added By</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <!-- /.card-body -->
+        </div>
+    </div>
+</section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        if (suser.role === "User") {
+            window.location.href = "/Home/Events";
+            return;
+        }
+
+        if (suser.role === "Admin") {
+            document.getElementById("newUserButton").style.display = "block";
+        }
+
+        loadUsers();
+    });
+
+    async function loadUsers() {
+        let i = 1;
+        const tableElement = document.getElementById("tblUser");
+
+        if ($.fn.DataTable.isDataTable(tableElement)) {
+            $(tableElement).DataTable().destroy();
+        }
+
+        try {
+            const table = $(tableElement).DataTable({
+                ajax: {
+                    url: '/api/User/GetAllUsers',
+                    contentType: "application/json; charset=utf-8",
+                    type: "GET",
+                    dataType: "json",
+                    async: true,
+                    dataSrc: "",
+                },
+                columns: [
+                    { render: () => i++ },
+                    {
+                        data: null,
+                        render: data => {
+                            const imgSrc = data.photo && data.photo.length < 100 ?
+                                "/img/img_avatar.png" :
+                                `data:image/*;base64,${data.photo}`;
+                            return `<img src="${imgSrc}" alt="Preview" width="50" height="50" loading="lazy">`;
+                        },
+                    },
+                    {
+                        data: null,
+                        render: data => `
+                                <i class="nav-icon fas fa-edit" onclick="editUser(${data.userId})"></i>
+                                <i class="nav-icon fas fa-trash-alt" onclick="deleteUser(${data.userId})"></i>`
+                    },
+                    { data: "memberId" },
+                    { data: "firstName" },
+                    { data: "lastName" },
+                    { data: "mobileNumber" },
+                    { data: "userEmail" },
+                    { data: "rfId" },
+                    { data: "lifeGroup" },
+                    { data: "address" },
+                    {
+                        data: "createdOn",
+                        render: data => new Date(data).toLocaleString(),
+                    },
+                    { data: "createdBy" },
+                ],
+                dom: "Bfrtip",
+                responsive: false,
+                lengthChange: false,
+                autoWidth: false,
+                pageLength: 10,
+                scrollX: true,
+                deferRender: true,
+                buttons: ["copy", "csv", "excel", "pdf", "print", "colvis"],
+            });
+
+            table.buttons().container().appendTo("#tblUser_wrapper .col-md-6:eq(0)");
+        } catch (error) {
+            console.error("Error loading users:", error);
+            Swal.fire('Error', 'Failed to load users', 'error');
+        }
+    }
+
+    function editUser(uid) {
+        window.location.href = `/Home/AddUser?u=${uid}`;
+    }
+
+    function deleteUser(uid) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: "You won't be able to revert this!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then(result => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `/api/User/DeleteUser/${uid}`,
+                    type: 'DELETE',
+                    contentType: 'application/json',
+                    success: function () {
+                        Swal.fire('Deleted!', 'User deleted successfully!', 'success').then(loadUsers);
+                    },
+                    error: function () {
+                        Swal.fire('Failed!', 'Failed to delete user!', 'error');
+                    }
+                });
+            }
+        });
+    }
+
+    function updateFromSF() {
+        $.get('/api/User/UpdateFromSF')
+            .then(response => {
+                const message = response === "Success" ? 'Updated successfully!' : 'An error occurred';
+                Swal.fire('Updated!', message, response === "Success" ? 'success' : 'error')
+                    .then(loadUsers);
+            })
+            .catch(error => {
+                console.error("Error updating from SF:", error);
+                Swal.fire('Error', 'Failed to update from SF', 'error');
+            });
+    }
+</script>
+

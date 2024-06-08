@@ -1,0 +1,329 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TKT Church - Event Attendance</title>
+    <script src="/themeAssets/plugins/jquery/jquery.min.js"></script>
+    <link rel="stylesheet" href="/themeAssets/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+    <link rel="stylesheet" href="/themeAssets/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+    <link rel="stylesheet" href="/themeAssets/plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            min-width: 100vw;
+            position: absolute;
+        }
+
+        .container {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            background-image: url("/img/bg_attendance.jpg");
+            background-size: cover; /* <------ */
+            background-repeat: no-repeat;
+            background-position: center center;
+            color: #000;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px 20px;
+            background-color: #000;
+            color: #fff;
+            height: 100px;
+        }
+
+            .header img {
+                height: 20px;
+            }
+
+            .header div {
+                display: flex;
+                align-items: center;
+            }
+
+        .header-left img {
+            margin-right: 10px;
+            margin-left: 50px;
+            height: 200px;
+        }
+
+        .header-right img {
+            margin-left: 10px;
+            margin-right: 50px;
+            height: 100px;
+        }
+
+        .header-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .content {
+            font-size: 2.5em;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 20px;
+            padding-bottom: 20px;
+            flex: 1;
+        }
+
+        .hidden-input {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .event-details {
+            text-align: center;
+            padding: 20px;
+        }
+
+        #currentDate {
+            font-size: 1em;
+            text-align: center;
+            background-color: black;
+            color: white;
+            padding-bottom: 10px;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .custom-table thead {
+                background-color: #007bff;
+                color: white;
+            }
+
+            .custom-table th, .custom-table td {
+                border: 1px solid #dee2e6;
+                padding: 8px;
+                text-align: center;
+            }
+
+            .custom-table tbody tr:nth-child(even) {
+                background-color: #f2f2f2;
+            }
+
+
+        .vertical-table {
+            width: 10%;
+            height: calc(100vh - 100px);
+            position: relative;
+            overflow-y: auto;
+            border-right: 1px solid transparent;
+            background-color: transparent;
+        }
+
+            .vertical-table table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .vertical-table th, .vertical-table td {
+                border: 1px solid black;
+                padding: 8px;
+                text-align: left;
+            }
+
+            .vertical-table tbody tr:nth-child(even) {
+                background-color: transparent;
+            }   
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img src="/img/tkt-logo.png" alt="TKT Church Logo">
+        </div>
+        <div class="header-center">
+            <div class="event-details">
+                <h1 id="eventName">The Awakening Conference 2024</h1>
+                <h1 id="mealName">Meal</h1>
+            </div>
+        </div>
+        <div class="header-right">
+            <img id="eventPhoto" src="/img/alphabet.png" alt="Alphabet Logo">
+        </div>
+    </div>
+    <div id="currentDate"></div>
+    <div class="container">
+        <div class="vertical-table">
+            <table id="tblHistory">
+                <thead>
+                    <tr>
+                        <th>Attendees</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div class="content">
+            <p>Welcome,</p>
+            <div id="message">Please scan your card.</div>
+            <img src="" id="userPhoto" alt="User Photo" style="margin-right:20px;width: 200px; height: auto; float: right; display:none">
+        </div>
+    </div>
+    <div id="attendance-container"></div>
+    <input type="text" id="rfidInput" class="hidden-input" />
+    <script src="/themeAssets/plugins/moment/moment.min.js"></script>
+    <script src="/themeAssets/plugins/datatables/jquery.dataTables.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-buttons/js/buttons.print.min.js"></script>
+    <script src="/themeAssets/plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            let eid = 0;
+            let mid = 0;
+
+            const rfidInput = $('#rfidInput');
+            const eventNameElement = $('#eventName');
+            const userPhoto = $('#userPhoto');
+            const message = $('#message');
+
+            rfidInput.focus();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const eventId = urlParams.get('eventId');
+            mid = urlParams.get('mealId');
+            eid = eventId;
+
+            if (eventId) {
+                fetchEventDetails(eventId, mid);
+                loadEventAttendance();
+            }
+
+            showTime();
+
+            $('body').click(function () {
+                rfidInput.focus();
+            });
+
+            rfidInput.on('input', debounce(handleRFIDInput, 300));
+
+            async function fetchEventDetails(eventId, mealId) {
+                try {
+                    const response = await fetch(`/api/Event/GetEventAndMealsbyIds/${eventId}/${mealId}`);
+                    const data = await response.json();
+
+                    eventNameElement.text(`${data.payload.eventName} - `);
+                    $('#mealName').text(` ${data.payload.meals[0].mealName}`);
+                    $('#eventPhoto').attr('src', `data:image/*;base64,${data.payload.photo}`);
+                } catch (error) {
+                    console.error('Error fetching event details:', error);
+                }
+            }
+
+            async function handleRFIDInput() {
+                const value = rfidInput.val();
+                const inputLength = value.length;
+
+                if (inputLength === 14 || inputLength === 8) {
+                    await validateRFID(value);
+                    rfidInput.attr('disabled', 'disabled');
+                    setTimeout(() => {
+                        rfidInput.removeAttr('disabled').focus();
+                    }, 500);
+                }
+            }
+
+            async function validateRFID(rfid) {
+                try {
+                    const response = await fetch(`/api/Event/MarkEventAttendance/${rfid}/${eid}/${mid}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+
+                    rfidInput.val('').focus();
+
+                    if (data.status) {
+                        userPhoto.attr('src', `data:image/png;base64,${data.payload.photo}`).show();
+                        message.text(`To ${eventNameElement.text()} \n ${data.payload.firstName} ${data.payload.lastName}`);
+                        loadEventAttendance();
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        message.text("Please scan your card.");
+                        userPhoto.hide();
+                    } else {
+                        message.text(data.message);
+                    }
+                } catch (error) {
+                    console.error('Error validating RFID:', error);
+                    rfidInput.val('').focus();
+                }
+            }
+
+            function showTime() {
+                const now = new Date();
+                const dateString = formatDate(now);
+                const timeString = now.toLocaleTimeString();
+                $('#currentDate').text(`${dateString} ${timeString}`);
+                setTimeout(showTime, 1000);
+            }
+
+            const DATE_DISPLAY_FORMAT = 'DD-MMM-YYYY';
+
+            function formatDate(d) {
+                return moment(d).format(DATE_DISPLAY_FORMAT);
+            }
+
+            function loadEventAttendance() {
+                $.ajax({
+                    url: `/api/Event/GetAllMealAttendanceByEventId/${eid}/${mid}`,
+                    type: 'GET',
+                    contentType: 'application/json',
+                    async: false,
+                    success: function (d) {
+                        const data = d.payload;
+                        if (data && data.length > 0) {
+                            $("#tblHistory tbody").empty();
+                            data[0].userDetails.forEach(item => {
+                                $("#tblHistory tbody").prepend(`<tr><td>${item.userName}<br/><small>${formatDatetime(new Date(item.punchIn)).toLocaleString()}</small></td></tr>`);
+                            });
+                        }
+                    },
+                    error: function (e) {
+                        console.error('Error loading event attendance:', e);
+                    }
+                });
+            }
+
+            const DATETIME_DISPLAY_FORMAT = 'DD-MMM-YYYY hh:mm A';
+
+            function formatDatetime(d) {
+                return moment(d).format(DATETIME_DISPLAY_FORMAT);
+            }
+        });
+
+        function debounce(func, wait) {
+            let timeout;
+            return function (...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+    </script>
+</body>
+</html>

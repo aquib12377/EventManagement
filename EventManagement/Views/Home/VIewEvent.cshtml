@@ -1,0 +1,382 @@
+﻿@{
+    ViewData["Title"] = "View Event";
+}
+<section class="content">
+    <div class="container-fluid">
+        <br>
+        <div class="card card-primary card-outline">
+            <div class="card-header">
+                <h3 class="card-title">Event Details</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="lblEventName">Event Name</label>
+                        <p id="lblEventName"></p>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="lblEventStart">Starts From</label>
+                        <p id="lblEventStart"></p>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="lblEventEnd">Ends At</label>
+                        <p id="lblEventEnd"></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="lblEventLocation">Event Location</label>
+                        <p id="lblEventLocation"></p>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="lblEventCreatedBy">Created By</label>
+                        <p id="lblEventCreatedBy"></p>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="lblEventCreatedOn">Created On</label>
+                        <p id="lblEventCreatedOn"></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <button class="btn btn-primary btn-sm" onclick="StartEvent()">Start Event</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card card-primary card-outline">
+            <div class="card-header">
+                <h3 class="card-title">Meal Details</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table id="tblEventMeals" class="table table-bordered table-striped table-sm nowrap">
+                    <thead>
+                        <tr>
+                            <th>Meal Name</th>
+                            <th>Meal Start Time</th>
+                            <th>Meal End Time</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated here by API -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card card-info card-outline">
+            <div class="card-header">
+                <h3 class="card-title">Post-Event Attendance</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-5 col-sm-3">
+                        <div class="nav flex-column nav-tabs h-100" id="attendance-tabs" role="tablist" aria-orientation="vertical">
+                            <!-- Tabs will be populated here by API -->
+                        </div>
+                    </div>
+                    <div class="col-7 col-sm-9">
+                        <div class="tab-content" id="attendance-tabs-content">
+                            <!-- Tab content will be populated here by API -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card card-info card-outline">
+            <div class="card-header">
+                <h3 class="card-title">Post-Event Meal Attendance</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-5 col-sm-3">
+                        <div class="nav flex-column nav-tabs h-100" id="meal-attendance-tabs" role="tablist" aria-orientation="vertical">
+                            <!-- Tabs will be populated here by API -->
+                        </div>
+                    </div>
+                    <div class="col-7 col-sm-9">
+                        <div class="tab-content" id="meal-attendance-tabs-content">
+                            <!-- Tab content will be populated here by API -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<script src="~/themeAssets//plugins/jquery/jquery.min.js"></script>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    var eventId = urlParams.get('eid');
+
+    $(document).ready(function () {
+        LoadEventData();
+        LoadEventAttendance();
+        LoadEventMealAttendance();
+    });
+    function LoadEventData() {
+        $.ajax({
+            url: '/api/Event/GetEvenWithMeals' + '/' + eventId,
+            type: 'GET',
+            contentType: 'application/json',
+            async: false,
+            success: function (d) {
+                var e = d.payload;
+                console.log(e);
+                $("#lblEventName").html(e.eventName);
+                $("#lblEventStart").html(FORMAT_DATETIME(e.eventStartTime));
+                $("#lblEventEnd").html(FORMAT_DATETIME(e.eventEndTime));
+                $("#lblEventLocation").html(e.eventLocation);
+                $("#lblEventCreatedBy").html(e.createdByName);
+                $("#lblEventCreatedOn").html(FORMAT_DATETIME(e.createdOn));
+                e.meals.forEach(meal => {
+                    const row = $("<tr></tr>");
+                    row.append($("<td></td>").text(meal.mealName));
+                    row.append($("<td></td>").text(FORMAT_DATETIME(meal.mealTimeFrom)));
+                    row.append($("<td></td>").text(FORMAT_DATETIME(meal.mealTimeTo)));
+                    row.append($("<td></td>").html('<button class="btn btn-xs btn-primary" onclick="StartMeal(' + parseInt(eventId) + ',' + meal.mealId + ',\'' + encodeURIComponent(meal.mealName) + '\')">Start Meal</button>'));
+                    $("#tblEventMeals tbody").append(row);
+                });
+            },
+            error: function (err) {
+
+            }
+        })
+    }
+
+    function LoadEventAttendance() {
+        var data = null;
+        $.ajax({
+            url: '/api/Event/GetAllAttendanceByEventId' + '/' + eventId,
+            type: 'GET',
+            contentType: 'application/json',
+            async: false,
+            success: function (d) {
+                data = d.payload;
+            },
+            error: function (e) {
+                console.log(e);
+            }
+        })
+        if (data != null && data.length > 0) {
+            $.each(data, function (index, item) {
+                console.log('Index:', index, 'Value:', item);
+                $('#attendance-tabs').append('<a class="nav-link" data-toggle="pill" href="#attendance_' + index + '" role="tab" aria-controls="vert-tabs-profile" aria-selected="false">' + FORMAT_DATE(item.eventDate) + '</a>')
+                $('#attendance-tabs-content').append('<div class="tab-pane fade" id="attendance_' + index + '" role="tabpanel" aria-labelledby="vert-tabs-profile-tab">' + createAttendanceTable(item.userDetails) + '</div>')
+            });
+            $("#attendance-tabs a:first").addClass("active");
+            $("#attendance-tabs a:first").attr("aria-selected", "true");
+            $("#attendance-tabs-content > div:first-child").addClass("show active");
+            var fileName = $("#lblEventName").html() + " Event Attendance";
+            $("#tblPE_Attendance").DataTable({
+                "responsive": true, "lengthChange": false, "autoWidth": false,
+                "buttons": [
+                    {
+                        extend: 'copy',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'csv',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'excel',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'pdf',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'print',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'colvis',
+                        filename: fileName,
+                    },
+                ],
+            }).buttons().container().appendTo('#tblPE_Attendance_wrapper .col-md-6:eq(0)');
+        }
+    }
+
+    function LoadEventMealAttendance() {
+        var data = null;
+        $.ajax({
+            url: '/api/Event/GetAllMealAttendanceByEventId' + '/' + eventId,
+            type: 'GET',
+            contentType: 'application/json',
+            async: false,
+            success: function (d) {
+                data = d.payload
+            },
+            error: function (e) {
+                console.log(e);
+            }
+        })
+        if (data != null && data.length > 0) {
+            $.each(data, function (index, item) {
+                console.log('Index:', index, 'Value:', item);
+                $('#meal-attendance-tabs').append('<a class="nav-link" data-toggle="pill" href="#attendance_' + index + '" role="tab" aria-controls="vert-tabs-profile" aria-selected="false">' + FORMAT_DATE(item.eventDate) + '</a>')
+                $('#meal-attendance-tabs-content').append('<div class="tab-pane fade" id="attendance_' + index + '" role="tabpanel" aria-labelledby="vert-tabs-profile-tab">' + createMealAttendanceTable(item.userDetails) + '</div>')
+            });
+            $("#meal-attendance-tabs a:first").addClass("active");
+            $("#meal-attendance-tabs a:first").attr("aria-selected", "true");
+            $("#meal-attendance-tabs-content > div:first-child").addClass("show active");
+            var fileName = $("#lblEventName").html() + " Meal Attendance";
+            $("#tblPE_Meal").DataTable({
+                "responsive": true, "lengthChange": false, "autoWidth": false,
+                "buttons": [
+                    {
+                        extend: 'copy',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'csv',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'excel',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'pdf',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'print',
+                        filename: fileName,
+                    },
+                    {
+                        extend: 'colvis',
+                        filename: fileName,
+                    },
+                ],
+            }).buttons().container().appendTo('#tblPE_Meal_wrapper .col-md-6:eq(0)');
+        }
+    }
+
+    function createAttendanceTable(userDetails) {
+        let tableHtml = '<table id="tblPE_Attendance" class="table table-bordered table-striped table-sm">';
+        tableHtml += '<thead><tr><th>User Name</th><th>Punch In</th><th>Punch Out</th></tr></thead>';
+        tableHtml += '<tbody>';
+
+        userDetails.forEach(user => {
+            tableHtml += '<tr>';
+            tableHtml += '<td>' + user.userName + '</td>';
+            tableHtml += '<td>' + FORMAT_DATETIME(user.punchIn) + '</td>';
+            tableHtml += '<td>' + FORMAT_DATETIME(user.puchOut) + '</td>';
+            tableHtml += '</tr>';
+        });
+
+        tableHtml += '</tbody></table>';
+        return tableHtml;
+    }
+    function createMealAttendanceTable(userDetails) {
+        let tableHtml = '<table id="tblPE_Meal" class="table table-bordered table-striped table-sm">';
+        tableHtml += '<thead><tr><th>User Name</th><th>Punch Time</th></tr></thead>';
+        tableHtml += '<tbody>';
+
+        userDetails.forEach(user => {
+            tableHtml += '<tr>';
+            tableHtml += '<td>' + user.userName + '</td>';
+            tableHtml += '<td>' + FORMAT_DATETIME(user.punchIn) + '</td>';
+            tableHtml += '</tr>';
+        });
+
+        tableHtml += '</tbody></table>';
+        return tableHtml;
+    }
+    function StartEvent() {
+        //getEventAttendanceByUserId(eventId, suser.userId);
+        window.open('/Home/EventAttendance' + '?eventId=' + eventId, '_blank');
+        // window.open('/Home/EventAttendance' + '?eid=' + eventId, '_blank');
+    }
+    function StartMeal(eid, mid, mname) {
+        //getEventAndMealsAttendanceByUserId(mid, suser.userId);
+        window.open('/Home/EventMealAttendance' + '?eventId=' + eventId + '&mealId=' + mid, '_blank');
+    }
+    function getEventAndMealsAttendanceByUserId(emid, uid) {
+        $.ajax({
+            url: `/api/Event/GetEventAndMealsAttendanceByUserId/${emid}/${uid}`,
+            method: 'GET',
+            success: function (response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function (xhr, status, error) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while processing your request.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    }
+    function getEventAttendanceByUserId(eid, uid) {
+        $.ajax({
+            url: `/api/Event/GetEventAttendanceByUserId/${eid}/${uid}`,
+            method: 'GET',
+            success: function (response) {
+                if (response.status) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: response.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            },
+            error: function (xhr, status, error) {
+                Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while processing your request.',
+                    icon: 'error',
+                    confirmButtonText: 'OK'
+                });
+            }
+        });
+    }
+
+</script>
