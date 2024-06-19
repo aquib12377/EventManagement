@@ -6,68 +6,70 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using EventManagement.Helper;
 using System.Text;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace EventManagement.Controllers
 {
     public class AccountController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private User _user;
+        private readonly SignInManager<User> signInManager;
+        private readonly UserManager<User> userManager;
 
-        public AccountController(ApplicationDbContext context)
+        public AccountController(ApplicationDbContext context,User user, SignInManager<User> signInManager,UserManager<User> userManager)
         {
             _context = context;
+            _user = user;
+            this.signInManager = signInManager;
+            this.userManager = userManager;
         }
 
         public IActionResult Index() => View();
 
         [HttpPost]
-        public IActionResult Login(LoginViewModel model)
+        public async Task<IActionResult> Login(LoginViewModel model)
         {
             if (ModelState.IsValid)
             {
-                var user = _context.Users
-                    .FirstOrDefault(u => u.MobileNumber == model.Mobile);
-                var p = PasswordHelper.HashPassword(model.Password);
-                if (user != null)
+                
+                var result = await signInManager.PasswordSignInAsync(model.Mobile, model.Password, true, lockoutOnFailure: false);
+
+                if (result.Succeeded)
                 {
-                    var claims = new List<Claim>
+                    var user = await _context.Users.FirstOrDefaultAsync(x => x.MobileNumber == model.Mobile && x.Password == model.Password);
+                    if (user != null)
                     {
-                        new(ClaimTypes.Name, user.UserEmail),
-                        new("FullName", user.FirstName+" "+user.LastName),
-                        new(ClaimTypes.Role, user.Role),
-                    };
+                        await signInManager.SignInAsync(user, isPersistent: true);
 
-                    var claimsIdentity = new ClaimsIdentity(
-                        claims, CookieAuthenticationDefaults.AuthenticationScheme);
-
-                    var authProperties = new AuthenticationProperties
-                    {
-                        // Allow refresh
-                        AllowRefresh = true,
-                        // Set expiration time
-                        ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(60)
-                    };
-
-                    HttpContext.SignInAsync(
-                        CookieAuthenticationDefaults.AuthenticationScheme,
-                        new ClaimsPrincipal(claimsIdentity),
-                        authProperties).Wait();
-
-                    HttpContext.LogInUser();
-                    UserHelper.User = new User();
-                    UserHelper.User = user;
-                    return RedirectToAction("Index", "Home");
+                        HttpContext.Session.SetString("UID", user.UserId);  // This line might be redundant now
+                        HttpContext.Session.Set("UserData", user);  // This line might be redundant now
+                        //UserHelper.User = user;
+                        return RedirectToAction("Index", "Home");
+                    }
                 }
 
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                if (result.IsLockedOut)
+                {
+                    ModelState.AddModelError("", "Your account is locked out. Please try again later.");
+                }
+                else
+                {
+                    ModelState.AddModelError("", "Invalid credentials. Please check your username and password.");
+                }
             }
 
-            return View(model);
-        }
+            // If ModelState is not valid, it will return to the login view with errors
+            return View("Index", model);
+            }
+
+
         [HttpGet]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme).Wait();
+            HttpContext.Session.Clear();
+            await signInManager.SignOutAsync();
             HttpContext.LogOutUser();
             return RedirectToAction("Index", "Account");
         }

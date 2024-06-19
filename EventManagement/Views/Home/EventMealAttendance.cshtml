@@ -191,6 +191,16 @@
     <script src="/themeAssets/plugins/datatables-buttons/js/buttons.print.min.js"></script>
     <script src="/themeAssets/plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
     <script>
+        const DATE_DISPLAY_FORMAT = 'DD-MMM-YYYY';
+
+        function formatDate(d) {
+            return moment(d).format(DATE_DISPLAY_FORMAT);
+        }
+        const DATETIME_DISPLAY_FORMAT = 'DD-MMM-YYYY hh:mm A';
+
+        function formatDatetime(d) {
+            return moment(d).format(DATETIME_DISPLAY_FORMAT);
+        }
         $(document).ready(function () {
             let eid = 0;
             let mid = 0;
@@ -267,7 +277,10 @@
                         userPhoto.hide();
                     } else {
                         message.text(data.message);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        message.text("Please scan your card.");
                     }
+                    rfidInput.val('').focus();
                 } catch (error) {
                     console.error('Error validating RFID:', error);
                     rfidInput.val('').focus();
@@ -282,11 +295,7 @@
                 setTimeout(showTime, 1000);
             }
 
-            const DATE_DISPLAY_FORMAT = 'DD-MMM-YYYY';
-
-            function formatDate(d) {
-                return moment(d).format(DATE_DISPLAY_FORMAT);
-            }
+            
 
             function loadEventAttendance() {
                 $.ajax({
@@ -299,7 +308,7 @@
                         if (data && data.length > 0) {
                             $("#tblHistory tbody").empty();
                             data[0].userDetails.forEach(item => {
-                                $("#tblHistory tbody").prepend(`<tr><td>${item.userName}<br/><small>${formatDatetime(new Date(item.punchIn)).toLocaleString()}</small></td></tr>`);
+                                $("#tblHistory tbody").prepend(`<tr><td>${item.userName}<br/><small>${formatDatetimeUTC(new Date(item.punchIn))}</small></td></tr>`);
                             });
                         }
                     },
@@ -309,13 +318,13 @@
                 });
             }
 
-            const DATETIME_DISPLAY_FORMAT = 'DD-MMM-YYYY hh:mm A';
-
-            function formatDatetime(d) {
-                return moment(d).format(DATETIME_DISPLAY_FORMAT);
-            }
+            
         });
-
+        function formatDatetimeUTC(utcDate) {
+            // Convert UTC date to local time
+            const localTime = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
+            return localTime.toLocaleString();
+        }
         function debounce(func, wait) {
             let timeout;
             return function (...args) {

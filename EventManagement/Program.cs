@@ -1,5 +1,8 @@
 using EventManagement.DbContext;
+using EventManagement.Helper;
+using EventManagement.Models;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +20,10 @@ namespace EventManagement
             builder.Services.AddControllersWithViews();
             builder.Services.AddHttpClient();
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseNpgsql(builder.Configuration.GetConnectionString("PgSql")));
+            {
+                options.UseNpgsql(builder.Configuration.GetConnectionString("PgSql"));
+                options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+            });
 
             builder.Services.AddResponseCompression(o =>
             {
@@ -27,12 +33,19 @@ namespace EventManagement
 
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
-            builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-                .AddCookie(options =>
-                {
-                    options.LoginPath = "/Account/Login";
-                    options.AccessDeniedPath = "/Account/AccessDenied";
-                });
+            builder.Services.AddIdentity<User, IdentityRole>()
+                            .AddEntityFrameworkStores<ApplicationDbContext>()
+                            .AddDefaultTokenProviders();
+
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.Cookie.HttpOnly = true;
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+                options.LoginPath = "/Account/Login";
+                options.LogoutPath = "/Account/Logout";
+                options.SlidingExpiration = true;
+                options.Cookie.IsEssential = true;
+            });
 
             builder.Services.AddHttpContextAccessor();
 
@@ -44,6 +57,7 @@ namespace EventManagement
             });
 
             builder.Services.AddTransient<ITempDataDictionaryFactory, TempDataDictionaryFactory>();
+            builder.Services.AddScoped<User>();
 
             var app = builder.Build();
 

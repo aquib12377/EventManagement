@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.RegularExpressions;
 
@@ -7,7 +8,7 @@ namespace EventManagement.Models
     public class Attendance
     {
         public int AttendanceId { get; set; }
-        public int? UserId { get; set; }
+        public string? UserId { get; set; }
         public int? EventId { get; set; }
         public DateTime? PunchTime { get; set; }
         public bool? IsActive { get; set; }
@@ -20,7 +21,7 @@ namespace EventManagement.Models
     {
         public int MealAttendanceId { get; set; }
         public int? EventId { get; set; }
-        public int? UserId { get; set; }
+        public string? UserId { get; set; }
         public int? MealId { get; set; }
         public bool? IsActive { get; set; }
         public DateTime? CreatedOn { get; set; }
@@ -28,6 +29,7 @@ namespace EventManagement.Models
         public DateTime? UpdatedOn { get; set; }
         public int? UpdatedBy { get; set; }
         public DateTime? PunchTime { get; set; }
+
     }
     public class EventMeal
     {
@@ -86,11 +88,26 @@ namespace EventManagement.Models
         public DateTime? UpdatedOn { get; set; }
         public int? UpdatedBy { get; set; }
     }
-    public class User
+    public class UserDTO
+    {
+        public string MemberId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string MobileNumber { get; set; }
+        public string UserEmail { get; set; }
+        public string RfId { get; set; }
+        public string LifeGroup { get; set; }
+        public string Address { get; set; }
+        public DateTime CreatedOn { get; set; }
+        public string CreatedBy { get; set; }
+        public string Photo { get; set; }
+        public string UserId { get; set; } // Assuming UserId is also a field in your data
+    }
+    public class User:IdentityUser
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int UserId { get; set; }
+        public string UserId { get; set; }
         public string? RfId { get; set; }
         public string? Role { get; set; }
         public string? FirstName { get; set; }
@@ -118,8 +135,8 @@ namespace EventManagement.Models
             if (string.IsNullOrWhiteSpace(user.RfId))
                 validationErrors.Add("RfId cannot be empty ");
 
-            if (validationErrors.Count == 0 && user.RfId.Length != 14)
-                validationErrors.Add("RFID length should be equal to 14.");
+            if (validationErrors.Count == 0 && !(user.RfId.Length == 8 || user.RfId.Length == 14))
+                validationErrors.Add("RFID length should be equal to 14/8.");
 
             if (string.IsNullOrWhiteSpace(user.Role))
                 validationErrors.Add("Role cannot be empty.");

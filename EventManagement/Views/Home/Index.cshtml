@@ -95,12 +95,14 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
+        debugger;
+        console.log(UserAuth.getUserData());
         if (suser.role === "User") {
             window.location.href = "/Home/Events";
             return;
         }
 
-        if (suser.role === "Admin") {
+        if (suser.role === "Admin" || suser.role === "Staff") {
             document.getElementById("newUserButton").style.display = "block";
         }
 
@@ -110,7 +112,7 @@
     async function loadUsers() {
         let i = 1;
         const tableElement = document.getElementById("tblUser");
-
+        
         if ($.fn.DataTable.isDataTable(tableElement)) {
             $(tableElement).DataTable().destroy();
         }
@@ -125,6 +127,7 @@
                     async: true,
                     dataSrc: "",
                 },
+                cache:true,
                 columns: [
                     { render: () => i++ },
                     {
@@ -139,8 +142,8 @@
                     {
                         data: null,
                         render: data => `
-                                <i class="nav-icon fas fa-edit" onclick="editUser(${data.userId})"></i>
-                                <i class="nav-icon fas fa-trash-alt" onclick="deleteUser(${data.userId})"></i>`
+                                <i class="nav-icon fas fa-edit" onclick="editUser('${data.userId}')"></i>
+                                <i class="nav-icon fas fa-trash-alt" onclick="deleteUser('${data.userId}')"></i>`
                     },
                     { data: "memberId" },
                     { data: "firstName" },
@@ -152,7 +155,6 @@
                     { data: "address" },
                     {
                         data: "createdOn",
-                        render: data => new Date(data).toLocaleString(),
                     },
                     { data: "createdBy" },
                 ],
@@ -163,21 +165,35 @@
                 pageLength: 10,
                 scrollX: true,
                 deferRender: true,
-                buttons: ["copy", "csv", "excel", "pdf", "print", "colvis"],
+                buttons: suser.role != "Admin" ? [] : ["copy", "csv", "excel", "pdf", "print", "colvis"],
             });
 
             table.buttons().container().appendTo("#tblUser_wrapper .col-md-6:eq(0)");
+
+          
+
         } catch (error) {
             console.error("Error loading users:", error);
             Swal.fire('Error', 'Failed to load users', 'error');
         }
     }
 
+
+
     function editUser(uid) {
         window.location.href = `/Home/AddUser?u=${uid}`;
     }
 
     function deleteUser(uid) {
+
+        if (suser.role != "Admin") {
+            Swal.fire({
+                title: 'Permission Denied',
+                text: "You do not have permission to delete an user.",
+                icon: 'warning',
+            });
+            return;
+        }
         Swal.fire({
             title: 'Are you sure?',
             text: "You won't be able to revert this!",

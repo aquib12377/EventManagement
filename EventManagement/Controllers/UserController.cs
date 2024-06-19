@@ -9,6 +9,7 @@ using System.Net.Http;
 using Salesforce.Common.Models.Json;
 using Microsoft.CodeAnalysis;
 using EventManagement.Helper;
+using Microsoft.AspNetCore.Identity;
 
 namespace EventManagement.Controllers
 {
@@ -19,22 +20,44 @@ namespace EventManagement.Controllers
         private readonly ApplicationDbContext context;
         private readonly HttpClient httpClient;
         private readonly IConfiguration configuration;
+        private readonly UserManager<User> userManager;
+        private readonly SignInManager<User> signInManager;
 
-        public UserController(ApplicationDbContext context, HttpClient httpClient, IConfiguration configuration)
+        public UserController(ApplicationDbContext context, HttpClient httpClient, IConfiguration configuration, UserManager<User> userManager,SignInManager<User> signInManager)
         {
             this.context = context;
             this.httpClient = httpClient;
             this.configuration = configuration;
+            this.userManager = userManager;
+            this.signInManager = signInManager;
         }
 
         [HttpGet("GetAllUsers")]
         public async Task<IActionResult> GetAllUsers()
         {
             int statusCode = 200;
-            List<User> users = new();
+            List<UserDTO> users = new();
             try
             {
-                users = await context.Users.AsNoTracking().Where(x => x.IsActive == true).ToListAsync();
+                users = await context.Users
+                        .OrderByDescending(x => x.CreatedBy)
+                        .Select(user => new UserDTO
+                        {
+                            MemberId = user.MemberId, // Assuming MemberId is stored as string and needs to be parsed
+                            FirstName = user.FirstName,
+                            LastName = user.LastName,
+                            MobileNumber = user.MobileNumber,
+                            UserEmail = user.UserEmail,
+                            RfId = user.RfId,
+                            LifeGroup = user.LifeGroup,
+                            Address = user.Address,
+                            CreatedOn = user.CreatedOn ?? DateTime.MinValue, // Handling nullable DateTime
+                            CreatedBy = user.CreatedBy.HasValue ? user.CreatedBy.Value.ToString() : string.Empty, // Assuming CreatedBy needs to be converted to string
+                            Photo = user.Photo,
+                            UserId = user.UserId // Assuming UserId is stored as string and needs to be parsed
+                        })
+                        .ToListAsync();
+
             }
             catch (Exception)
             {
@@ -42,8 +65,48 @@ namespace EventManagement.Controllers
             }
             return StatusCode(statusCode, users);
         }
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<UserDTO>>> SearchUsers([FromQuery] string searchString)
+        {
+            IQueryable<User> query = context.Users;
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                query = query.Where(u =>
+                    u.FirstName.Contains(searchString) ||
+                    u.LastName.Contains(searchString) ||
+                    u.MobileNumber.Contains(searchString) ||
+                    u.UserEmail.Contains(searchString)||
+                    u.MemberId.Contains(searchString)||
+                    u.RfId.Contains(searchString)||
+                    u.LifeGroup.Contains(searchString)||
+                    u.Address.Contains(searchString)
+                    ).Take(20);
+            }
+
+            // Project to UserDTO and execute query
+            var users = await query
+                .Select(user => new UserDTO
+                {
+                    MemberId = user.MemberId, // Assuming MemberId is stored as string and needs to be parsed
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    MobileNumber = user.MobileNumber,
+                    UserEmail = user.UserEmail,
+                    RfId = user.RfId,
+                    LifeGroup = user.LifeGroup,
+                    Address = user.Address,
+                    CreatedOn = user.CreatedOn ?? DateTime.MinValue, // Handling nullable DateTime
+                    CreatedBy = user.CreatedBy.HasValue ? user.CreatedBy.Value.ToString() : string.Empty, // Assuming CreatedBy needs to be converted to string
+                    Photo = user.Photo,
+                    UserId = user.UserId // Assuming UserId is stored as string and needs to be parsed
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
         [HttpGet("GetUserById/{uid}")]
-        public async Task<IActionResult> GetUserById(int uid)
+        public async Task<IActionResult> GetUserById(string uid)
         {
             int statusCode = 200;
             User user = null;
@@ -70,13 +133,13 @@ namespace EventManagement.Controllers
                 int updatedCount = 0;
                 int addedCount = 0;
                 var allUsers = await context.Users.AsNoTracking().ToListAsync();
+                List<string> userNames = new List<string>();
                 foreach (var sfuser in sFUsers.Members)
                 {
                     var existingUser = allUsers.FirstOrDefault(x => x.MemberId == sfuser.MemberId);
 
                     if (existingUser != null)
                     {
-                       
                         bool isChanged = false;
 
                         if (!string.IsNullOrEmpty(sfuser.Address) && existingUser.Address != sfuser.Address)
@@ -103,20 +166,19 @@ namespace EventManagement.Controllers
                             isChanged = true;
                         }
 
-
                         if (isChanged)
                         {
                             existingUser.UpdatedOn = DateTime.Now;
-                            existingUser.FirstName = sfuser.MemberName;
+                            existingUser.FirstName = sfuser.MemberName ?? existingUser.FirstName;
                             existingUser.LastName = "";
                             context.Users.Update(existingUser);
+                            userNames.Add(existingUser.RfId!);
                             updatedCount++;
                         }
                     }
-
                     else
                     {
-                        User newUser = new User
+                        User newUser = new()
                         {
                             Address = sfuser.Address,
                             LifeGroup = sfuser.LifeGroupName,
@@ -137,49 +199,63 @@ namespace EventManagement.Controllers
                 await context.SaveChangesAsync();
 
                 // Push Events to Salesforce
-                var events = await context.Events.ToListAsync();
-                if (events != null)
+                var events = await context.Events.AsNoTracking().ToListAsync();
+                var validEvents = events
+                    .Where(e => !string.IsNullOrEmpty(e.EventId.ToString()) && !string.IsNullOrEmpty(e.EventName))
+                    .Select(e => new SFEvent { EventId = e.EventId.ToString(), EventName = e.EventName })
+                    .ToList();
+
+                if (validEvents.Any())
                 {
                     EventData eventData = new EventData
                     {
                         DataList = new List<EventDataList>
-                {
-                    new EventDataList
-                    {
-                        Events = events.Select(e => new SFEvent { EventId = e.EventId.ToString(), EventName = e.EventName }).ToList()
-                    }
-                }
+                        {
+                            new EventDataList
+                            {
+                                Events = validEvents
+                            }
+                        }
                     };
                     await salesforce.PushEventDataAsync(eventData);
                 }
 
                 // Push Event Attendance to Salesforce
-                var attendances = await context.Attendances.ToListAsync();
-                if (attendances != null)
+                var attendances = await context.Attendances.AsNoTracking().ToListAsync();
+                var validAttendances = attendances
+                    .Where(a => context.Users.Find(a.UserId) != null)  // Ensure the user exists
+                    .Select(a => new SFAttendance
+                    {
+                        EventId = a.EventId.ToString(),
+                        MemberId = context.Users.Find(a.UserId)!.MemberId!
+                    }).ToList();
+
+                if (validAttendances.Any())
                 {
                     AttendanceData attendanceData = new AttendanceData
                     {
                         DataList = new List<AttendanceDataList>
-                {
-                    new AttendanceDataList
-                    {   
-                        Attendances = attendances.Select(a => new SFAttendance { EventId = a.EventId.ToString(), MemberId = context.Users.Find(a.UserId)!.MemberId }).ToList()
-                    }
-                }
+                        {
+                            new AttendanceDataList
+                            {
+                                Attendances = validAttendances
+                            }
+                        }
                     };
                     await salesforce.PushAttendanceDataAsync(attendanceData);
                 }
 
                 return StatusCode(200, "Success");
             }
-            catch (Exception e )
+            catch (Exception e)
             {
-                return StatusCode(500, "Internal Server Error");
+                return StatusCode(500, e.Message);
             }
         }
 
+
         [HttpDelete("DeleteUser/{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
+        public async Task<IActionResult> DeleteUser(string id)
         {
             int statusCode = 200;
             User? user = new();
@@ -236,35 +312,75 @@ namespace EventManagement.Controllers
                     return BadRequest(new Response(false, "Rfid Already Exists", null));
                 }
 
-                User newUser = new()
-                {
-                    Address = user.Address,
-                    CreatedBy = user.CreatedBy,
-                    CreatedOn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")),
+                var user1 = new User { 
+                    UserName = user.MobileNumber, 
+                    Email = user.Email,
+                    Address=user.Address,
+                    CreatedBy=user.CreatedBy,
+                    CreatedOn = user.CreatedOn,
                     FirstName = user.FirstName,
-                    IsActive = user.IsActive,
-                    LastName = user.LastName,
+                    MobileNumber = user.MobileNumber,
+                    IsActive = true,
                     LifeGroup = user.LifeGroup,
                     MemberId = user.MemberId,
-                    MobileNumber = user.MobileNumber,
+                    Password = user.Role == "User" ? "Anchor@99" : user.Password,
                     Photo = user.Photo,
-                    RfId = user.RfId,
                     Role = user.Role,
-                    UpdatedBy = user.UpdatedBy,
-                    UpdatedOn = user.UpdatedOn,
+                    RfId = user.RfId,
                     UserEmail = user.UserEmail,
-                    Password = "12345678    ",
+                    EmailConfirmed = true,
+                    LastName = user.LastName,
+                    NormalizedEmail = user.UserEmail,
+                    NormalizedUserName = user.MobileNumber,
+                    PhoneNumber = user.MobileNumber,
+                    PhoneNumberConfirmed = true,
                 };
+                var result = await userManager.CreateAsync(user1, user1.Password);
+                if (result.Succeeded)
+                {
+                    return Ok(new { Status = true, Message = "Successfully Added User" });
+                }
+                return Ok(new { Status = true, Message = result.Errors.Select(x => x.Description).Aggregate((i,j) => i +"\r\n"+j) });
 
-                await context.Users.AddAsync(newUser);
-                await context.SaveChangesAsync();
-
-                return Ok(new { Status = true, Message = "Successfully Added User" });
             }
             catch (Exception e)
             {
                 return StatusCode(500, new { Status = false, Message = e.Message });
             }
+        }
+        [HttpGet("UpdatePasswordforAll")]
+        public async Task<Response> UpdatePasswordforAll()
+        {
+            Response response = new Response(true, "", null);
+            try
+            {
+                var users = await userManager.Users.AsNoTracking().ToListAsync();
+
+                for (int i = 0; i < users.Count; i++)
+                {
+                    var user = users[i];
+                    var suser = JsonConvert.SerializeObject(user);
+                    try
+                    {
+                        if (string.IsNullOrEmpty(user.SecurityStamp))
+                        {
+                            user.SecurityStamp = Guid.NewGuid().ToString();
+                        }
+                        var token = await userManager.GeneratePasswordResetTokenAsync(user);
+                        var res = await userManager.ResetPasswordAsync(user, token, "Anchor@99");
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle exception
+                response = new Response(false, ex.Message, null);
+            }
+            return response;
         }
 
         public async Task<string> GetUsersAsync(string accessToken)
@@ -401,5 +517,23 @@ namespace EventManagement.Controllers
             }
         }
 
+        public List<UserDTO> ConvertToUserDTOs(List<User> users)
+        {
+            return users.Select(user => new UserDTO
+            {
+                MemberId = user.MemberId, // Assuming MemberId is stored as string and needs to be parsed
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                MobileNumber = user.MobileNumber,
+                UserEmail = user.UserEmail,
+                RfId = user.RfId,
+                LifeGroup = user.LifeGroup,
+                Address = user.Address,
+                CreatedOn = user.CreatedOn ?? DateTime.MinValue, // Handling nullable DateTime
+                CreatedBy = user.CreatedBy.HasValue ? user.CreatedBy.Value.ToString() : string.Empty, // Assuming CreatedBy needs to be converted to string
+                Photo = user.Photo,
+                UserId = user.UserId // Assuming UserId is stored as string and needs to be parsed
+            }).ToList();
+        }
     }
 }

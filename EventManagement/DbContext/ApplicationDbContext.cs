@@ -1,9 +1,11 @@
 ﻿using EventManagement.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace EventManagement.DbContext
 {
-    public class ApplicationDbContext: Microsoft.EntityFrameworkCore.DbContext
+    public class ApplicationDbContext: IdentityDbContext<User>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)

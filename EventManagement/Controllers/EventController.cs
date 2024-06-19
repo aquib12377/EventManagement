@@ -1,7 +1,9 @@
 ﻿using EventManagement.DbContext;
 using EventManagement.Helper;
 using EventManagement.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -11,13 +13,16 @@ namespace EventManagement.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class EventController : ControllerBase
     {
         private readonly ApplicationDbContext context;
+        private readonly UserManager<User> userManager;
 
-        public EventController(ApplicationDbContext context)
+        public EventController(ApplicationDbContext context,UserManager<User> userManager)
         {
             this.context = context;
+            this.userManager = userManager;
         }
 
         [HttpGet("GetAllEventsWithMealCount")]
@@ -38,7 +43,7 @@ namespace EventManagement.Controllers
                         IsActive = e.IsActive,
                         MealCount = context.EventMeals.Count(em => em.EventId == e.EventId),
                         CreatedOn = e.CreatedOn,
-                        CreatedByName = UserHelper.User.FirstName,
+                        CreatedByName = HttpContext.Session.Get<User>("UserData").FirstName,
                         UpdatedOn = e.UpdatedOn,
                         UpdatedBy = e.UpdatedBy
                     })
@@ -75,7 +80,7 @@ namespace EventManagement.Controllers
                     IsActive = e.IsActive,
                     Meals = eventMeals,
                     CreatedOn = e.CreatedOn,
-                    CreatedByName = context.Users.Find(e.CreatedBy)?.FirstName,
+                    CreatedByName = context.Users.Find(e.CreatedBy.ToString())?.FirstName,
                     UpdatedOn = e.UpdatedOn,
                     UpdatedBy = e.UpdatedBy,
                     Photo = e.Photo,
@@ -102,14 +107,14 @@ namespace EventManagement.Controllers
                 var eventEntity = new Events
                 {   
                     CreatedBy = Convert.ToInt32(e.CreatedByName),
-                    CreatedOn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")),
-                    EventEndTime = TimeZoneInfo.ConvertTime(e.EventEndTime.Value, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")),
-                    EventStartTime = TimeZoneInfo.ConvertTime(e.EventStartTime.Value, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")),
+                    CreatedOn = DateTime.Now,
+                    EventEndTime = e.EventEndTime,
+                    EventStartTime = e.EventStartTime,
                     EventLocation = e.EventLocation,
                     IsActive = true,
                     EventName = e.EventName,
                     UpdatedBy = Convert.ToInt32(e.CreatedByName),
-                    UpdatedOn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")),
+                    UpdatedOn = DateTime.Now,
                     Photo = e.Photo
                 };
 
@@ -124,6 +129,11 @@ namespace EventManagement.Controllers
                     meal.UpdatedBy = eventEntity.UpdatedBy;
                     meal.CreatedOn = eventEntity.CreatedOn;
                     meal.UpdatedOn = eventEntity.UpdatedOn;
+
+                    if(meal.MealName == null)
+                    {
+                        continue;
+                    }
 
                     EventMeal m = new EventMeal
                     {
@@ -150,7 +160,7 @@ namespace EventManagement.Controllers
         }
 
         [HttpGet("GetEventAndMealsAttendanceByUserId/{emid}/{uid}")]
-        public async Task<IActionResult> GetEventAndMealsAttendanceByUserId(int emid, int uid)
+        public async Task<IActionResult> GetEventAndMealsAttendanceByUserId(int emid, string uid)
         {
             try
             {
@@ -176,13 +186,13 @@ namespace EventManagement.Controllers
                 {
                     var mealAttendance = new EventMealAttendance
                     {
-                        CreatedBy = uid,
+                        CreatedBy = Convert.ToInt32(uid),
                         CreatedOn = DateTime.Now,
                         EventId = e.EventId,
                         IsActive = true,
                         MealId = em.MealId,
                         PunchTime = DateTime.Now,
-                        UpdatedBy = uid,
+                        UpdatedBy = Convert.ToInt32(uid),
                         UpdatedOn = DateTime.Now,
                         UserId = uid
                     };
@@ -201,7 +211,7 @@ namespace EventManagement.Controllers
         }
 
         [HttpGet("GetEventAttendanceByUserId/{eid}/{uid}")]
-        public async Task<IActionResult> GetEventAttendanceByUserId(int eid, int uid)
+        public async Task<IActionResult> GetEventAttendanceByUserId(int eid, string uid)
         {
             try
             {
@@ -226,12 +236,12 @@ namespace EventManagement.Controllers
                     var attendance = new Attendance
                     {
                         UserId = uid,
-                        CreatedBy = uid,
+                        CreatedBy = Convert.ToInt32(uid),
                         CreatedOn = DateTime.Now,
                         EventId = e.EventId,
                         IsActive = true,
                         PunchTime = DateTime.Now,
-                        UpdatedBy = uid,
+                        UpdatedBy = Convert.ToInt32(uid),
                         UpdatedOn = DateTime.Now
                     };
 
@@ -440,12 +450,12 @@ namespace EventManagement.Controllers
 
                 if (updatedEvent.EventName != null && oldEvent.EventName != updatedEvent.EventName) oldEvent.EventName = updatedEvent.EventName;
                 if (updatedEvent.EventLocation != null && oldEvent.EventLocation != updatedEvent.EventLocation) oldEvent.EventLocation = updatedEvent.EventLocation;
-                if (updatedEvent.EventStartTime.HasValue && oldEvent.EventStartTime != updatedEvent.EventStartTime) oldEvent.EventStartTime = TimeZoneInfo.ConvertTime(updatedEvent.EventStartTime.Value, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-                if (updatedEvent.EventEndTime.HasValue && oldEvent.EventEndTime != updatedEvent.EventEndTime) oldEvent.EventEndTime = TimeZoneInfo.ConvertTime(updatedEvent.EventEndTime.Value, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
+                if (updatedEvent.EventStartTime.HasValue && oldEvent.EventStartTime != updatedEvent.EventStartTime) oldEvent.EventStartTime = updatedEvent.EventStartTime;
+                if (updatedEvent.EventEndTime.HasValue && oldEvent.EventEndTime != updatedEvent.EventEndTime) oldEvent.EventEndTime = updatedEvent.EventEndTime.Value;
                 if (updatedEvent.IsActive.HasValue && oldEvent.IsActive != updatedEvent.IsActive) oldEvent.IsActive = updatedEvent.IsActive;
 
                 oldEvent.Photo = updatedEvent.Photo;
-                oldEvent.UpdatedOn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
+                oldEvent.UpdatedOn = DateTime.Now;
 
                 context.Events.Update(oldEvent);
 
@@ -456,10 +466,10 @@ namespace EventManagement.Controllers
                     {
                         if (updatedMeal.MealType != null && oldMeal.MealType != updatedMeal.MealType) oldMeal.MealType = updatedMeal.MealType;
                         if (updatedMeal.MealName != null && oldMeal.MealName != updatedMeal.MealName) oldMeal.MealName = updatedMeal.MealName;
-                        if (updatedMeal.MealTimeFrom.HasValue && oldMeal.MealTimeFrom != updatedMeal.MealTimeFrom) oldMeal.MealTimeFrom = TimeZoneInfo.ConvertTime(updatedMeal.MealTimeFrom.Value, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
-                        if (updatedMeal.MealTimeTo.HasValue && oldMeal.MealTimeTo != updatedMeal.MealTimeTo) oldMeal.MealTimeTo = TimeZoneInfo.ConvertTime(updatedMeal.MealTimeTo.Value, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
+                        if (updatedMeal.MealTimeFrom.HasValue && oldMeal.MealTimeFrom != updatedMeal.MealTimeFrom) oldMeal.MealTimeFrom = updatedMeal.MealTimeFrom;
+                        if (updatedMeal.MealTimeTo.HasValue && oldMeal.MealTimeTo != updatedMeal.MealTimeTo) oldMeal.MealTimeTo = updatedMeal.MealTimeTo;
                         if (updatedMeal.IsActive.HasValue && oldMeal.IsActive != updatedMeal.IsActive) oldMeal.IsActive = updatedMeal.IsActive;
-                        oldMeal.UpdatedOn = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
+                        oldMeal.UpdatedOn = DateTime.Now;
                         if (updatedMeal.UpdatedBy.HasValue && oldMeal.UpdatedBy != updatedMeal.UpdatedBy) oldMeal.UpdatedBy = updatedMeal.UpdatedBy;
 
                         context.EventMeals.Update(oldMeal);
@@ -511,14 +521,12 @@ namespace EventManagement.Controllers
 
                     Attendance eventAttendance = new Attendance
                     {
-                        CreatedBy = UserHelper.User.UserId,
-                        CreatedOn = DateTime.Now,
+                        CreatedOn = DateTime.UtcNow,
                         EventId = eid,
                         IsActive = true,
-                        PunchTime = DateTime.Now,
+                        PunchTime = DateTime.UtcNow,
                         UserId = u.UserId,
-                        UpdatedOn = DateTime.Now,
-                        UpdatedBy = UserHelper.User.UserId,
+                        UpdatedOn = DateTime.UtcNow,
                     };
 
                     await context.Attendances.AddAsync(eventAttendance);
@@ -554,14 +562,14 @@ namespace EventManagement.Controllers
 
                     EventMealAttendance eventMealAttendance = new EventMealAttendance
                     {
-                        CreatedBy = UserHelper.User.UserId,
-                        CreatedOn = DateTime.Now,
+                        CreatedBy = 2,
+                        CreatedOn = DateTime.UtcNow,
                         EventId = eid,
                         IsActive = true,
-                        PunchTime = DateTime.Now,
+                        PunchTime = DateTime.UtcNow,
                         UserId = u.UserId,
-                        UpdatedOn = DateTime.Now,
-                        UpdatedBy = UserHelper.User.UserId,
+                        UpdatedOn = DateTime.UtcNow,
+                        UpdatedBy = 2,
                         MealId = mid,
                     };
 
@@ -606,7 +614,7 @@ namespace EventManagement.Controllers
                     IsActive = e.IsActive,
                     Meals = new List<EventMeal> { eventMeals },
                     CreatedOn = e.CreatedOn,
-                    CreatedByName = context.Users.Find(e.CreatedBy)?.FirstName,
+                    CreatedByName = HttpContext.Session.Get<User>("UserData").FirstName,
                     UpdatedOn = e.UpdatedOn,
                     UpdatedBy = e.UpdatedBy,
                     Photo = e.Photo,

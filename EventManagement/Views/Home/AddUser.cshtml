@@ -1,8 +1,6 @@
-﻿@{
-    ViewData["Title"] = "Users";
-}
+﻿@model User
 
-
+<title>Users - Event Management</title>
 <section class="content">
     <div class="container-fluid">
         <br>
@@ -16,13 +14,13 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="txtMemberId">Member Id</label>
-                            <input type="text" class="form-control" value="@(Model != null ? Model.MemberId.ToString() : "")" validation="alphanum" id="txtMemberId" placeholder="Member Id" fdprocessedid="m8cjcj">
+                            <input type="text" class="form-control" validation="alphanum" id="txtMemberId" placeholder="Member Id">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="txtRFID">RFID</label>
-                            <input type="text" class="form-control" value="@(Model != null ? Model.RfId.ToString() : "")" validation="alphanum" id="txtRFID" placeholder="RFID" fdprocessedid="5abcy">
+                            <input type="text" class="form-control" validation="alphanum" id="txtRFID" placeholder="RFID">
                         </div>
                     </div>
                 </div>
@@ -30,13 +28,13 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="txtFirstName">First Name</label>
-                            <input type="text" class="form-control" value="@(Model != null ? Model.FirstName.ToString() : "")" validation="alpha" id="txtFirstName" placeholder="First Name" fdprocessedid="gu3fsg">
+                            <input type="text" class="form-control" validation="alpha" id="txtFirstName" placeholder="First Name">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="txtLastName">Last Name</label>
-                            <input type="text" class="form-control" value="@(Model != null ? Model.LastName.ToString() : "")" validation="alpha" id="txtLastName" placeholder="Last Name" fdprocessedid="hvwkup">
+                            <input type="text" class="form-control" validation="alpha" id="txtLastName" placeholder="Last Name">
                         </div>
                     </div>
                 </div>
@@ -44,20 +42,19 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="txtMobile">Mobile</label>
-                            <input type="number" class="form-control" value="@(Model != null ? Model.MobileNumber.ToString() : "")" validation="mobile" id="txtMobile" placeholder="Mobile" fdprocessedid="ncisx6">
+                            <input type="number" class="form-control" validation="mobile" id="txtMobile" placeholder="Mobile">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="txtEmail">Email</label>
-                            <input type="email" autocomplete="off" value="@(Model != null ? Model.UserEmail.ToString() : "")" validation="email" class="form-control" id="txtEmail" placeholder="Email" fdprocessedid="1zli6y">
+                            <input type="email" autocomplete="off" validation="email" class="form-control" id="txtEmail" placeholder="Email">
                         </div>
                     </div>
                     <div class="col-md-4">
-
                         <div class="form-group clearfix">
                             <label for="txtLifeGroup">Life Group</label>
-                            <input type="text" autocomplete="off" value="@(Model != null ? Model.LifeGroup.ToString() : "")" validation="alphanum" class="form-control" id="txtLifeGroup" placeholder="Life Group" fdprocessedid="9t0lkq">
+                            <input type="text" autocomplete="off" validation="alphanum" class="form-control" id="txtLifeGroup" placeholder="Life Group">
                         </div>
                     </div>
                 </div>
@@ -67,13 +64,13 @@
                             <div class="col-md-6">
                                 <div class="form-group clearfix">
                                     <label for="txtAddress">Address</label>
-                                    <textarea class="form-control" id="txtAddress" placeholder="Address">@(Model != null ? Model.Address.ToString() : "")</textarea>
+                                    <textarea class="form-control" id="txtAddress" placeholder="Address"></textarea>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="drpRole">Role</label>
-                                    <select id="drpRole" tabindex="" class="form-control" fdprocessedid="0pawgw">
+                                    <select id="drpRole" class="form-control">
                                         <option value="User">User</option>
                                         <option value="Staff">Staff</option>
                                         <option value="Admin">Admin</option>
@@ -105,7 +102,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <img src="@(Model != null && !String.IsNullOrEmpty(Model.Photo) ? $"data:image/png;base64,{Model.Photo}" : "/img/img_avatar.png")" alt="Preview" width="150" height="150" id="imagePreview">
+                                <img src="/img/img_avatar.png" alt="Preview" width="150" height="150" id="imagePreview">
                             </div>
                         </div>
                     </div>
@@ -113,7 +110,7 @@
 
                 <div class="row">
                     <div class="col-md-4">
-                        <button class="btn btn-primary" id="btnSave" fdprocessedid="37ltyc">Save</button>
+                        <button class="btn btn-primary" id="btnSave">Save</button>
                         <button style="display:none" class="btn btn-primary" id="btnUpdate">Update</button>
                     </div>
                 </div>
@@ -122,10 +119,11 @@
     </div>
 </section>
 
+
 <script src="/themeAssets//plugins//jquery//jquery.min.js"></script>
 <script>
     var user = {
-        "UserId": 0,
+        "UserId": "0",
         "MemberId": "",
         "RfId": "",
         "Role": "",
@@ -144,7 +142,7 @@
         "UpdatedBy": 0
     }
 
-    var uid = 0;
+    var uid = "";
 
     var photoBase64 = "";
 
@@ -154,9 +152,9 @@
             window.location.href = "/Home/Events";
         var urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('u') != '') {
-            uid = parseInt(urlParams.get('u'));
+            uid = urlParams.get('u');
         }
-        if (uid > 0) {
+        if (uid.length > 0 && uid != "0") {
             $('#btnSave').hide();
             $('#btnUpdate').show();
             LoadUserData();
@@ -177,14 +175,17 @@
 
     $("#btnSave").on('click', async function () {
         if (ValidateForm()) {
-            if ($("#txtPassword").val() != $("#txtConfirmPassword").val()) {
+            
+            await BindSaveDataToModel();
+            
+            if ($("#txtPassword").val() != $("#txtConfirmPassword").val() && user.Role === "Staff") {
                 $("#txtConfirmPassword").addClass("is-invalid");
                 $("#txtConfirmPassword").removeClass("is-valid");
                 $("#txtConfirmPassword").siblings(".error-msg").remove();
                 $("#txtConfirmPassword").after(`<label class="error-msg mb-0">Password Mismatch!</label>`);
                 return;
             }
-            await BindSaveDataToModel();
+
             $.ajax({
                 url: '/api/User/AddUser',
                 type: 'POST',
@@ -218,7 +219,7 @@
                 return;
             }
             await BindSaveDataToModel();
-            user.UserId = uid;
+            user.UserId = uid.toString()
             $.ajax({
                 url: '/api/User/UpdateUser',
                 type: 'POST',
@@ -261,12 +262,13 @@
         user.UserEmail = $("#txtEmail").val();
         user.RfId = $("#txtRFID").val();
         user.MemberId = $("#txtMemberId").val();
-        user.Password = $("#txtPassword").val();
+        user.Password = $("#txtConfirmPassword").val();
         user.Address = $("#txtAddress").val();
         user.LifeGroup = $("#txtLifeGroup").val();
         user.Role = $('#drpRole').val();
-        user.CreatedBy = suser.userId;
-        user.UpdatedBy = suser.userId;
+        user.CreatedBy = 2;
+        user.UpdatedBy = 2;
+
     }
 
     function LoadUserData() {

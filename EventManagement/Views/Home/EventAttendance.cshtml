@@ -27,7 +27,10 @@
             flex: 1;
             display: flex;
             flex-direction: row;
-            background: linear-gradient(to bottom right, #fad0c4, #ffd1ff);
+            background-image: url("/img/bg_attendance.jpg");
+            background-size: cover; /* <------ */
+            background-repeat: no-repeat;
+            background-position: center center;
             color: #000;
         }
 
@@ -186,12 +189,22 @@
     <script src="/themeAssets/plugins/datatables-buttons/js/buttons.print.min.js"></script>
     <script src="/themeAssets/plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
     <script>
+        const DATETIME_DISPLAY_FORMAT = 'DD-MMM-YYYY hh:mm A';
+        function formatDatetime(d) {
+            return moment(d).format(DATETIME_DISPLAY_FORMAT);
+        }
+        const DATE_DISPLAY_FORMAT = 'DD-MMM-YYYY';
+
+        function formatDate(d) {
+            return moment(d).format(DATE_DISPLAY_FORMAT);
+        }
         $(document).ready(async function () {
             let eid = 0;
             const rfidInput = $('#rfidInput');
             const eventNameElement = $('#eventName');
             const userPhoto = $('#userPhoto');
             const message = $('#message');
+            rfidInput.on('input', debounce(handleRFIDInput, 300));
 
             rfidInput.focus();
 
@@ -210,15 +223,18 @@
                 rfidInput.focus();
             });
 
-            rfidInput.keyup(async function () {
-                if ($(this).val().length >= 14) {
-                    await validateRFID(this.value);
-                    $(this).attr('disabled', 'disabled');
+            async function handleRFIDInput() {
+                const value = rfidInput.val();
+                const inputLength = value.length;
+
+                if (inputLength === 14 || inputLength === 8) {
+                    await validateRFID(value);
+                    rfidInput.attr('disabled', 'disabled');
                     setTimeout(() => {
-                        $(this).removeAttr('disabled').focus();
+                        rfidInput.removeAttr('disabled').focus();
                     }, 500);
                 }
-            });
+            }
 
             async function fetchEventName(eventId) {
                 try {
@@ -247,11 +263,14 @@
                     if (data.status) {
                         userPhoto.attr('src', `data:image/png;base64,${data.payload.photo}`).show();
                         message.text(`To ${eventNameElement.text()} \n ${data.payload.firstName} ${data.payload.lastName}`);
-                        await loadEventAttendance();
+                        loadEventAttendance();
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                         message.text("Please scan your card.");
                         userPhoto.hide();
                     } else {
                         message.text(data.message);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        message.text("Please scan your card.");
                     }
                 } catch (error) {
                     console.error('Error validating RFID:', error);
@@ -267,34 +286,37 @@
                 setTimeout(showTime, 1000);
             }
 
-            const DATE_DISPLAY_FORMAT = 'DD-MMM-YYYY';
-
-            function formatDate(d) {
-                return moment(d).format(DATE_DISPLAY_FORMAT);
+            
+            
+            function loadEventAttendance() {
+                fetch(`/api/Event/GetAllAttendanceByEventId/${eid}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.payload.length > 0) {
+                            $("#tblHistory tbody").empty();
+                            data.payload[0].userDetails.forEach(item => {
+                                $("#tblHistory tbody").prepend(
+                                    `<tr><td>${item.userName}<br/><small>${formatDatetimeUTC(new Date(item.punchIn + ' UTC'))}}</small></td></tr>`
+                                );
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading event attendance:', error);
+                    });
             }
 
-            async function loadEventAttendance() {
-                try {
-                    const response = await fetch(`/api/Event/GetAllAttendanceByEventId/${eid}`);
-                    const data = await response.json();
-                    if (data && data.length > 0) {
-                        $("#tblHistory tbody").empty();
-                        data[0].userDetails.forEach(item => {
-                            $("#tblHistory tbody").prepend(
-                                `<tr><td>${item.userName}<br/><small>${formatDatetime(new Date(item.punchIn))}</small></td></tr>`
-                            );
-                        });
-                    }
-                } catch (error) {
-                    console.error('Error loading event attendance:', error);
-                }
+            function formatDatetimeUTC(utcDate) {
+                // Convert UTC date to local time
+                const localTime = new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
+                return localTime.toLocaleString();
             }
+
+
 
             const DATETIME_DISPLAY_FORMAT = 'DD-MMM-YYYY hh:mm A';
 
-            function formatDatetime(d) {
-                return moment(d).format(DATETIME_DISPLAY_FORMAT);
-            }
+            
 
             function debounce(func, wait) {
                 let timeout;

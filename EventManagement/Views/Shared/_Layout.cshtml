@@ -1,8 +1,31 @@
 ﻿@using EventManagement.Helper
+@using Microsoft.AspNetCore.Identity
+@inject UserManager<User> UserManager
+@inject SignInManager<User> SigninManager
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @{
-    var isLoggedIn = HttpContextAccessor.HttpContext.IsLoggedIn();
-    var usr = UserHelper.User;
+    var session = HttpContextAccessor.HttpContext.Session;
+    var uid = session.GetString("UID");
+    User usr = null;
+
+    if (!string.IsNullOrEmpty(uid))
+    {
+        if (session.Get<User>("UserData") == null)
+        {
+            // Replace this with your actual API call to get the user by ID
+            usr = await UserManager.FindByIdAsync(uid);
+            if (usr != null)
+            {
+                session.Set("UserData", usr);
+            }
+        }
+        else
+        {
+            usr = session.Get<User>("UserData");
+        }
+    }
+
+    var isLoggedIn = usr != null;
 }
 
 <html lang="en" style="height: auto;">
@@ -49,7 +72,7 @@
                     </a>
                     <div b-ct0d71z9yb="" class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                         <div b-ct0d71z9yb="" class="dropdown-divider"></div>
-                        <a b-ct0d71z9yb="" href="/" class="dropdown-item">
+                        <a b-ct0d71z9yb="" href="/Account/Logout" class="dropdown-item">
                             <i b-ct0d71z9yb="" class="fas fa-user mr-2"></i> Logout
                         </a>
                     </div>
@@ -103,10 +126,10 @@
            @RenderBody();
         </div>
         <footer b-ct0d71z9yb="" class="main-footer">
-            <strong b-ct0d71z9yb="">Copyright © 2024 <a b-ct0d71z9yb="" href="#">Eventz</a>.</strong>
+            <strong b-ct0d71z9yb="">Copyright © 2024 <a b-ct0d71z9yb="" href="technfc.com">Technfc</a>.</strong>
             All rights reserved.
             <div b-ct0d71z9yb="" class="float-right d-none d-sm-inline-block">
-                <b b-ct0d71z9yb="">Version</b> 3.2.0
+                <b b-ct0d71z9yb="">Version</b> A1.A0.A3.A7
             </div>
         </footer>
         <aside b-ct0d71z9yb="" class="control-sidebar control-sidebar-dark">
@@ -152,6 +175,7 @@
     <script>
 
         $(document).ready(function () {
+            debugger;
             var isLoggedIn = @isLoggedIn.ToString().ToLower();
             if (!isLoggedIn)
                 window.location.href = "/Account/Index";
@@ -176,7 +200,43 @@
             return isValid;
         }
 
-        window.setInterval(_ => $('#dt').text(moment().format(DATETIME_DISPLAY_FORMAT)), 500)
+        window.setInterval(_ => $('#dt').text(moment().format(DATETIME_DISPLAY_FORMAT)), 500);
+        var UserAuth = {
+            // Method to check if UID and user data are present
+            isUserAuthenticated: function () {
+                var uid = sessionStorage.getItem('UID');
+                var userData = sessionStorage.getItem('UserData');
+                return uid !== null && userData !== null;
+            },
+
+            // Method to get the UID
+            getUID: function () {
+                return sessionStorage.getItem('UID');
+            },
+
+            // Method to get the user data
+            getUserData: function () {
+                var userData = sessionStorage.getItem('UserData');
+                return userData ? JSON.parse(userData) : null;
+            },
+
+            // Method to set the UID
+            setUID: function (uid) {
+                sessionStorage.setItem('UID', uid);
+            },
+
+            // Method to set the user data
+            setUserData: function (userData) {
+                sessionStorage.setItem('UserData', JSON.stringify(userData));
+            },
+
+            // Method to clear user data and UID from session storage
+            clearAuthData: function () {
+                sessionStorage.removeItem('UID');
+                sessionStorage.removeItem('UserData');
+            }
+        };
+
     </script>
 </body>
 </html>

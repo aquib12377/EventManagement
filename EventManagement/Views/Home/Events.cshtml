@@ -127,16 +127,8 @@
             },
             {
                 data: "eventStartTime",
-                render: (data) => {
-                    const utcDate = new Date(data);
-                    return FORMAT_DATETIME(utcDate).toLocaleString();
-                },
             }, {
                 data: "eventEndTime",
-                render: (data) => {
-                    const utcDate = new Date(data);
-                    return FORMAT_DATETIME(utcDate).toLocaleString();
-                },
             }, {
                 data: "isActive",
                 render: (a, b, c) => {
@@ -145,10 +137,6 @@
                 ,
             }, {
                 data: "createdOn",
-                render: (data) => {
-                    const utcDate = new Date(data);
-                    return FORMAT_DATETIME(utcDate).toLocaleString();
-                },
             }, {
                 data: "createdByName"
             }],
@@ -158,7 +146,7 @@
             autoWidth: false,
             pageLength: 10,
             scrollX: true,
-            buttons: ["copy", "csv", "excel", "pdf", "print", "colvis"],
+            buttons: suser.role != "Admin" ? [] : ["copy", "csv", "excel", "pdf", "print", "colvis"],
         });
 
         d.buttons().container().appendTo("#tblEvent_wrapper .col-md-6:eq(0)");
@@ -173,10 +161,10 @@
     }
     function DeleteEvent(eid) {
 
-        if(suser.role === "Staff") {
+        if (suser.role != "Admin") {
             Swal.fire({
                 title: 'Permission Denied',
-                text: "You don't have permission to delete events",
+                text: "You do not have permission to delete an event.",
                 icon: 'warning',
             });
             return;
