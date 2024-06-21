@@ -1,3 +1,5 @@
+// Filename: a3-validation.js
+// Name: Mohammed Aquib Ansari
 function validateInput(inputField) {
     inputField = $(inputField);
     const inputVal = inputField.val();

@@ -168,7 +168,7 @@
     <script src="/themeAssets/plugins/datatables-buttons/js/buttons.print.min.js"></script>
     <script src="/themeAssets/plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
     <script src="/themeAssets/dist/js/pages/dashboard.js"></script>
-    <script src="/js/diaz-validation.js"></script>
+    <script src="/js/a3-validation.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/themeAssets/plugins/bs-custom-file-input/bs-custom-file-input.min.js"></script>
     <div class="jqvmap-label" style="display: none;"></div>
@@ -194,9 +194,9 @@
         }
         function ValidateForm() {
             let isValid = true;
-            $("[validation]").each(function () {
-                isValid = validateInput($(this)) && isValid;
-            });
+            // $("[validation]").each(function () {
+            //     isValid = validateInput($(this)) && isValid;
+            // });
             return isValid;
         }
 

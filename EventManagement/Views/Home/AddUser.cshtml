@@ -48,7 +48,7 @@
                     <div class="col-md-4">
                         <div class="form-group">
                             <label for="txtEmail">Email</label>
-                            <input type="email" autocomplete="off" validation="email" class="form-control" id="txtEmail" placeholder="Email">
+                            <input type="email" autocomplete="on" validation="email" class="form-control" id="txtEmail" optional="true" placeholder="Email">
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -324,11 +324,12 @@
     }
 
     function ValidateForm() {
-        let isValid = true;
-        $("[validation]").each(function () {
-            isValid = validateInput($(this)) && isValid;
-        });
-        return isValid;
+        // let isValid = true;
+        // $("[validation]").each(function () {
+        //     isValid = validateInput($(this)) && isValid;
+        // });
+        // return isValid;
+        return true;
     }
 
 </script>
